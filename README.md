@@ -5,7 +5,7 @@
 A local dashboard for analysing Vinted listings with price history, interactive charts, and saved searches. All data is stored on your own machine. The UI is available in **English** and **Spanish**.
 
 
-![Header](docs/header.png)
+![Header](Docs/Header.png)
 
 
 ---
