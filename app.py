@@ -58,8 +58,26 @@ st.markdown("""
         padding-bottom: 2rem !important;
     }
 
+    /* Keep the header above content so the mobile sidebar toggle is always tappable */
     header[data-testid="stHeader"] {
-        z-index: 0 !important;
+        z-index: 999 !important;
+    }
+
+    /* Ensure sidebar overlay and close button appear above everything on mobile */
+    [data-testid="stSidebar"] {
+        z-index: 1000 !important;
+    }
+
+    @media (max-width: 768px) {
+        .block-container {
+            padding-top: 5rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+        /* Prevent Tailwind grid from making KPI cards too narrow */
+        .tw-card {
+            padding: 0.75rem 1rem;
+        }
     }
 
     .tw-card {
@@ -487,10 +505,48 @@ with tab_dash:
     st.markdown(cards_html, unsafe_allow_html=True)
     st.markdown("<hr class='my-6 border-gray-200 dark:border-gray-700'>", unsafe_allow_html=True)
 
-    # ── Row 1: Timeline + Price distribution ──────────────────────────────────
+    # ── Row 1: Price distribution + Timeline ──────────────────────────────────
     c1, c2 = st.columns(2)
 
     with c1:
+        st.subheader(T["chart_price_title"])
+        df_price = df.dropna(subset=["price"])
+        if not df_price.empty:
+            # Clip outliers at the 99th percentile
+            p99     = df_price["price"].quantile(0.99)
+            n_excl  = int((df_price["price"] > p99).sum())
+            df_plot = df_price[df_price["price"] <= p99]
+
+            fig = px.histogram(
+                df_plot, x="price", nbins=40,
+                labels={"price": T["chart_price_xlabel"]},
+                color_discrete_sequence=[VINTED_TEAL],
+            )
+            fig.update_yaxes(title_text=T["chart_price_ylabel"], fixedrange=True)
+            fig.update_xaxes(fixedrange=True)
+            if m:
+                fig.add_vline(x=m["mean"], line_dash="dash", line_color="#FF9F43",
+                              annotation_text=T["chart_price_mean_label"].format(v=f"{m['mean']:.0f}"),
+                              annotation_position="top right", annotation_font_size=11)
+                fig.add_vline(x=m["median"], line_dash="dot", line_color="#28C76F",
+                              annotation_text=T["chart_price_median_label"].format(v=f"{m['median']:.0f}"),
+                              annotation_position="top left", annotation_font_size=11)
+            fig.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                yaxis=dict(gridcolor="rgba(200,200,200,0.2)"), xaxis=dict(showgrid=False),
+                margin=dict(l=20, r=20, t=45, b=20), hovermode="x unified",
+                font=dict(family="Inter, sans-serif"),
+            )
+            fig.update_traces(marker_line_width=1, marker_line_color="white", opacity=0.85)
+            st.plotly_chart(fig, width="stretch")
+            if n_excl > 0:
+                st.caption(T["chart_price_excl_caption"].format(
+                    n=n_excl, s=_s(n_excl), p=f"{p99:.0f}"
+                ))
+        else:
+            st.caption(T["chart_price_no_data"])
+
+    with c2:
         st.subheader(T["chart_timeline_title"])
         df_time = df.dropna(subset=["published_dt"]).copy()
         if not df_time.empty:
@@ -527,8 +583,8 @@ with tab_dash:
                 )
                 fig.update_layout(
                     plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    xaxis=dict(showgrid=False),
-                    yaxis=dict(gridcolor="rgba(200,200,200,0.2)"),
+                    xaxis=dict(showgrid=False, fixedrange=True),
+                    yaxis=dict(gridcolor="rgba(200,200,200,0.2)", fixedrange=True),
                     margin=dict(l=20, r=20, t=20, b=20), hovermode="x unified",
                     font=dict(family="Inter, sans-serif"),
                 )
@@ -543,43 +599,6 @@ with tab_dash:
                 st.caption(T["timeline_spike_caption"].format(n=n, s=_s(n)))
         else:
             st.caption(T["timeline_no_dates"])
-
-    with c2:
-        st.subheader(T["chart_price_title"])
-        df_price = df.dropna(subset=["price"])
-        if not df_price.empty:
-            # Clip outliers at the 99th percentile
-            p99     = df_price["price"].quantile(0.99)
-            n_excl  = int((df_price["price"] > p99).sum())
-            df_plot = df_price[df_price["price"] <= p99]
-
-            fig = px.histogram(
-                df_plot, x="price", nbins=40,
-                labels={"price": T["chart_price_xlabel"]},
-                color_discrete_sequence=[VINTED_TEAL],
-            )
-            fig.update_yaxes(title_text=T["chart_price_ylabel"])
-            if m:
-                fig.add_vline(x=m["mean"], line_dash="dash", line_color="#FF9F43",
-                              annotation_text=T["chart_price_mean_label"].format(v=f"{m['mean']:.0f}"),
-                              annotation_position="top right", annotation_font_size=11)
-                fig.add_vline(x=m["median"], line_dash="dot", line_color="#28C76F",
-                              annotation_text=T["chart_price_median_label"].format(v=f"{m['median']:.0f}"),
-                              annotation_position="top left", annotation_font_size=11)
-            fig.update_layout(
-                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(gridcolor="rgba(200,200,200,0.2)"), xaxis=dict(showgrid=False),
-                margin=dict(l=20, r=20, t=45, b=20), hovermode="x unified",
-                font=dict(family="Inter, sans-serif"),
-            )
-            fig.update_traces(marker_line_width=1, marker_line_color="white", opacity=0.85)
-            st.plotly_chart(fig, width="stretch")
-            if n_excl > 0:
-                st.caption(T["chart_price_excl_caption"].format(
-                    n=n_excl, s=_s(n_excl), p=f"{p99:.0f}"
-                ))
-        else:
-            st.caption(T["chart_price_no_data"])
 
     # ── Row 2: Condition + Brands ──────────────────────────────────────────────
     c3, c4 = st.columns(2)
@@ -602,6 +621,8 @@ with tab_dash:
                 showlegend=False, plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=40, r=40, t=10, b=10), font=dict(family="Inter, sans-serif"),
             )
+            fig.update_xaxes(fixedrange=True)
+            fig.update_yaxes(fixedrange=True)
             st.plotly_chart(fig, width="stretch")
         else:
             st.caption(T["chart_condition_no_data"])
@@ -619,8 +640,8 @@ with tab_dash:
                 color_discrete_sequence=[VINTED_TEAL],
             )
             fig.update_layout(
-                yaxis={"categoryorder": "total ascending", "showgrid": False},
-                xaxis={"visible": False, "showgrid": False},
+                yaxis={"categoryorder": "total ascending", "showgrid": False, "fixedrange": True},
+                xaxis={"visible": False, "showgrid": False, "fixedrange": True},
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=20, r=20, t=20, b=20), font=dict(family="Inter, sans-serif"),
             )
@@ -701,7 +722,8 @@ with tab_hist:
             )
             fig.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(gridcolor="rgba(200,200,200,0.2)"), xaxis=dict(showgrid=False),
+                yaxis=dict(gridcolor="rgba(200,200,200,0.2)", fixedrange=True),
+                xaxis=dict(showgrid=False, fixedrange=True),
                 margin=dict(l=20, r=20, t=20, b=20), hovermode="x unified",
                 font=dict(family="Inter, sans-serif"),
             )
@@ -733,8 +755,8 @@ with tab_hist:
             ))
             fig.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(gridcolor="rgba(200,200,200,0.2)", title=T["hist_price_ylabel"]),
-                xaxis=dict(showgrid=False),
+                yaxis=dict(gridcolor="rgba(200,200,200,0.2)", title=T["hist_price_ylabel"], fixedrange=True),
+                xaxis=dict(showgrid=False, fixedrange=True),
                 legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5),
                 margin=dict(l=20, r=20, t=20, b=20), hovermode="x unified",
                 font=dict(family="Inter, sans-serif"),
