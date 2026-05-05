@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+.env/
+
+# Base de datos local (contiene tus búsquedas y datos personales)
+*.db
+*.sqlite
+*.sqlite3
+
+# Variables de entorno
+.env
+.env.*
+
+# Streamlit
+.streamlit/
+
+# Claude Code (configuración privada del editor)
+.claude/
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
